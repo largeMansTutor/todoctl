@@ -1,0 +1,32 @@
+version: '3.9'
+services:
+  db:
+    image: mysql:8.4
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+      MYSQL_DATABASE: todos
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -pexample"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - db_data:/var/lib/mysql
+
+  api:
+    build: .
+    environment:
+      APP_PORT: 8080
+      DB_DSN: root:example@tcp(db:3306)/todos?parseTime=true&charset=utf8mb4&loc=UTC
+      APP_API_KEY: dev-key
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_data:
