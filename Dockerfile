@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.4
 
 ## Build stage
-FROM golang:1.22-alpine AS builder
+FROM golang:1.25-alpine AS builder
 WORKDIR /app
 # Install git for fetching private modules if needed
 RUN apk add --no-cache git
