@@ -67,6 +67,11 @@ func (w *responseWriter) Write(b []byte) (int, error) {
 func MaxBytes(n int64) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// If the request advertises a length over the limit, reject early.
+			if r.ContentLength > n && r.ContentLength != -1 {
+				http.Error(w, http.StatusText(http.StatusRequestEntityTooLarge), http.StatusRequestEntityTooLarge)
+				return
+			}
 			r.Body = http.MaxBytesReader(w, r.Body, n)
 			next.ServeHTTP(w, r)
 		})
