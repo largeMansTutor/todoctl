@@ -62,11 +62,12 @@ func TestCreateTodos(t *testing.T) {
 			repo := mocks.NewRepository(t)
 			idStore := mocks.NewIdempotencyStore(t)
 			repo.On("CreateTodos", mock.Anything, tt.input).Return(tt.input, tt.repoErr).Maybe()
-			idStore.On("Get", mock.Anything, "key", "todos:create").Return((*idempotency.Record)(nil), nil).Maybe()
-			idStore.On("Save", mock.Anything, "key", "todos:create", 201, mock.Anything).Return(nil).Maybe()
 			if tt.setupStore != nil {
 				tt.setupStore(idStore)
+			} else {
+				idStore.On("Get", mock.Anything, "key", "todos:create").Return((*idempotency.Record)(nil), nil).Maybe()
 			}
+			idStore.On("Save", mock.Anything, "key", "todos:create", 201, mock.Anything).Return(nil).Maybe()
 			svc := NewService(repo, idStore)
 
 			created, replay, err := svc.CreateTodos(context.Background(), "key", "todos:create", tt.input)
@@ -147,11 +148,12 @@ func TestUpdateTodos(t *testing.T) {
 			repo := mocks.NewRepository(t)
 			repo.On("UpdateTodos", mock.Anything, tt.input).Return([]tododomain.Todo{{ID: 2}}, tt.repoErr).Maybe()
 			idStore := mocks.NewIdempotencyStore(t)
-			idStore.On("Get", mock.Anything, "key", "todos:update").Return((*idempotency.Record)(nil), nil).Maybe()
-			idStore.On("Save", mock.Anything, "key", "todos:update", 200, mock.Anything).Return(nil).Maybe()
 			if tt.setupStore != nil {
 				tt.setupStore(idStore)
+			} else {
+				idStore.On("Get", mock.Anything, "key", "todos:update").Return((*idempotency.Record)(nil), nil).Maybe()
 			}
+			idStore.On("Save", mock.Anything, "key", "todos:update", 200, mock.Anything).Return(nil).Maybe()
 			svc := NewService(repo, idStore)
 
 			updated, replay, err := svc.UpdateTodos(context.Background(), "key", "todos:update", tt.input)

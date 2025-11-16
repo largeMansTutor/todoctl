@@ -13,7 +13,7 @@ import (
 )
 
 func TestCreateTodos_WithSQLMock(t *testing.T) {
-	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -21,7 +21,7 @@ func TestCreateTodos_WithSQLMock(t *testing.T) {
 	items := []tododomain.Todo{{Title: "task", Complete: false}}
 
 	mock.ExpectBegin()
-	mock.ExpectPrepare("INSERT INTO todos").ExpectExec().
+	mock.ExpectPrepare("INSERT INTO todos (title, description, due_date, complete) VALUES (?, ?, ?, ?)").ExpectExec().
 		WithArgs("task", nil, nil, false).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 	mock.ExpectQuery("SELECT id, title, description, due_date, complete, created_at, updated_at FROM todos WHERE id = ?").
@@ -37,7 +37,7 @@ func TestCreateTodos_WithSQLMock(t *testing.T) {
 }
 
 func TestUpdateTodos_WithSQLMock(t *testing.T) {
-	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -63,12 +63,12 @@ func TestUpdateTodos_WithSQLMock(t *testing.T) {
 }
 
 func TestListTodos_WithSQLMock(t *testing.T) {
-	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 	require.NoError(t, err)
 	defer db.Close()
 
 	repo := NewTodoRepository(db)
-	mock.ExpectQuery("SELECT id, title, description, due_date, complete, created_at, updated_at FROM todos .*LIMIT ? OFFSET ?").
+	mock.ExpectQuery("SELECT id, title, description, due_date, complete, created_at, updated_at FROM todos ORDER BY id ASC LIMIT ? OFFSET ?").
 		WithArgs(10, 0).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "due_date", "complete", "created_at", "updated_at"}).
 			AddRow(uint64(1), "title", nil, sql.NullTime{}, false, time.Now(), time.Now()))
