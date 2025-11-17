@@ -27,3 +27,11 @@ type TodoUpdate struct {
 	DueDate     **time.Time `json:"due_date,omitempty"`
 	Complete    *bool       `json:"complete,omitempty"`
 }
+
+func (t TodoUpdate) Key() uint64 {
+	return t.ID
+}
+
+func (t Todo) Key() string {
+	return t.Title
+}
