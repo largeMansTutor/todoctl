@@ -10,7 +10,7 @@ import (
 
 func TestHTTPMetricsMiddleware(t *testing.T) {
 	prov := New()
-	handler := prov.HTTP.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := prov.HTTPMetrics.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	req := httptest.NewRequest(http.MethodGet, "/foo", nil)
