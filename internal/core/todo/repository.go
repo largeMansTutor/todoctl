@@ -6,7 +6,7 @@ import (
 )
 
 // Repository defines the persistence boundary for Todo aggregates. It is
-// implemented by storage adapters (e.g. MySQL, Postgres) and consumed by
+// implemented by storage adapters (e.g. MySQL) and consumed by
 // the use case layer. Swapping the underlying database only requires
 // providing another implementation of this interface.
 type Repository interface {
