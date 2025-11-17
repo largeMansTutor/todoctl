@@ -1,8 +1,8 @@
 version: '3.9'
 services:
   db:
-    image: mysql:8.4
-    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    image: mysql:8.0
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     environment:
       MYSQL_ROOT_PASSWORD: example
       MYSQL_DATABASE: todos
@@ -20,13 +20,26 @@ services:
     build: .
     environment:
       APP_PORT: 8080
-      DB_DSN: root:example@tcp(db:3306)/todos?parseTime=true&charset=utf8mb4&loc=UTC
+      DB_DSN: root:example@tcp(db:3306)/todos?parseTime=true&charset=utf8mb4&loc=UTC&multiStatements=true
       APP_API_KEY: dev-key
     ports:
       - "8080:8080"
     depends_on:
       db:
         condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+
+  migrator:
+    build: .
+    entrypoint: ["/usr/local/bin/todo"]
+    command: ["migrate", "--direction", "up", "--path", "/app/migrations"]
+    environment:
+      DB_DSN: root:example@tcp(db:3306)/todos?parseTime=true&charset=utf8mb4&loc=UTC&multiStatements=true
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
 
 volumes:
   db_data:

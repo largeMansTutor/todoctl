@@ -5,6 +5,7 @@ This repository contains a production‑grade Todo API implemented in Go. It exp
 ## Features
 
 - **Bulk operations**: Create and update multiple todos in a single request.
+- **Single fetch**: Retrieve a todo by `id` or `title`.
 - **Pagination**: Offset (`page`/`limit`) and keyset (`cursor`/`limit`) pagination for listing.
 - **Idempotency**: Safe retries on POST and PATCH via `Idempotency-Key` header.
 - **MySQL persistence**: Efficient queries with indices on due date and completion status.
@@ -92,6 +93,13 @@ List todos using cursors:
 curl -X GET 'http://localhost:8080/v1/todos?limit=20' -H 'X-API-Key: dev-key'
 # Use the next_cursor returned in the previous response
 curl -X GET 'http://localhost:8080/v1/todos?limit=20&cursor=eyJpZCI6...==' -H 'X-API-Key: dev-key'
+```
+
+Get a todo by id or title:
+
+```bash
+curl -X GET 'http://localhost:8080/v1/todos/1' -H 'X-API-Key: dev-key'
+curl -X GET 'http://localhost:8080/v1/todos/0?title=Buy%20milk' -H 'X-API-Key: dev-key'
 ```
 
 ### Migrations

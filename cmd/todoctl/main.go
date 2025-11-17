@@ -5,10 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"net/http"
+	"math"
 	"os"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/golang-migrate/migrate/v4"
 	mysqlmigrate "github.com/golang-migrate/migrate/v4/database/mysql"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -19,8 +20,8 @@ import (
 	loggerfx "github.com/thetrollfarmercodes/todoctl/todo/internal/platform/logger"
 	"github.com/thetrollfarmercodes/todoctl/todo/internal/platform/metrics"
 	"github.com/thetrollfarmercodes/todoctl/todo/internal/platform/telemetry"
+	mysqlstorage2 "github.com/thetrollfarmercodes/todoctl/todo/internal/repository/mysql"
 	todousecase "github.com/thetrollfarmercodes/todoctl/todo/internal/service/todo"
-	mysqlstorage2 "github.com/thetrollfarmercodes/todoctl/todo/internal/storage/mysql"
 	webapi "github.com/thetrollfarmercodes/todoctl/todo/internal/web"
 	"github.com/thetrollfarmercodes/todoctl/todo/pkg/httpadapter"
 
@@ -48,11 +49,17 @@ func main() {
 			app := fx.New(
 				fx.Provide(
 					config.New,
+					func(cfg *config.Config) *httpadapter.HTTPConfig {
+						return &cfg.HTTPConfig
+					},
 					loggerfx.New,
 					metrics.New,
 					telemetry.ConfigureTracerProvider,
 					func(cfg *config.Config, logger *zap.Logger) *httpadapter.RateLimiter {
 						return httpadapter.NewRateLimiter(cfg.RateLimitPerSecond, cfg.RateLimitBurst, logger)
+					},
+					func(p *metrics.Provider) httpadapter.MetricsProvider {
+						return p
 					},
 				),
 				mysqlfx.ProvideDB(),
@@ -65,9 +72,9 @@ func main() {
 					},
 					todousecase.NewService,
 					fx.Annotate(webapi.New, fx.As(new(httpadapter.RouteMounter)), fx.ResultTags(`group:"routes"`)),
-					fx.Annotate(httpadapter.NewRouter, fx.ParamTags("", "", "", `group:"routes"`)),
+					fx.Annotate(httpadapter.NewRouter, fx.ParamTags("", "", `optional:"true"`, `group:"routes"`)),
 				),
-				fx.Invoke(func(lc fx.Lifecycle, cfg *config.Config, router http.Handler, logger *zap.Logger) {
+				fx.Invoke(func(lc fx.Lifecycle, cfg *config.Config, router chi.Router, logger *zap.Logger, metrics *metrics.Provider) {
 					httpadapter.StartHTTPServer(lc, &cfg.HTTPConfig, router, logger)
 				}),
 			)
@@ -95,8 +102,9 @@ func main() {
 			}
 			defer db.Close()
 
-			_, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
+			if err := waitForDB(cfg.DatabaseDSN, 8, 3*time.Second); err != nil {
+				return fmt.Errorf("database not ready: %w", err)
+			}
 
 			driver, err := mysqlmigrate.WithInstance(db, &mysqlmigrate.Config{
 				MigrationsTable: "schema_migrations",
@@ -143,4 +151,27 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+// waitForDB pings the DB with simple backoff; useful in containerized starts
+// where MySQL may still be initializing when migrations run.
+func waitForDB(dsn string, attempts int, delay time.Duration) error {
+	if attempts < 1 {
+		attempts = 1
+	}
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	for i := 0; i < attempts; i++ {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		err = db.PingContext(ctx)
+		cancel()
+		if err == nil {
+			return nil
+		}
+		time.Sleep(time.Duration(math.Pow(1.3, float64(i))) * delay)
+	}
+	return err
 }

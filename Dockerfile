@@ -16,8 +16,9 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 
 ## Runtime stage
 FROM gcr.io/distroless/static-debian11
-WORKDIR /
+WORKDIR /app
 COPY --from=builder /app/todo /usr/local/bin/todo
+COPY --from=builder /app/migrations /app/migrations
 ENV APP_PORT=8080
 EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/todo", "api"]
