@@ -95,4 +95,27 @@ func (_m *Repository) UpdateTodos(ctx context.Context, updates []tododomain.Todo
 	return r0, r1
 }
 
+// GetTodo provides a mock function with given fields: ctx, id, title
+func (_m *Repository) GetTodo(ctx context.Context, id uint64, title string) (*tododomain.Todo, error) {
+	ret := _m.Called(ctx, id, title)
+
+	var r0 *tododomain.Todo
+	if rf, ok := ret.Get(0).(func(context.Context, uint64, string) *tododomain.Todo); ok {
+		r0 = rf(ctx, id, title)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*tododomain.Todo)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, uint64, string) error); ok {
+		r1 = rf(ctx, id, title)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 var _ tododomain.Repository = (*Repository)(nil)

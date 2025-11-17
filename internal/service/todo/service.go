@@ -106,3 +106,18 @@ func (s *Service) UpdateTodos(ctx context.Context, idempotencyKey, scope string,
 func (s *Service) ListTodos(ctx context.Context, page int, limit int, cursor string) ([]tododomain.Todo, string, error) {
 	return s.repo.ListTodos(ctx, page, limit, cursor)
 }
+
+// GetTodo fetches a todo by id or title. One of id or title must be provided.
+func (s *Service) GetTodo(ctx context.Context, id uint64, title string) (*tododomain.Todo, error) {
+	if id == 0 && title == "" {
+		return nil, fmt.Errorf("id or title is required")
+	}
+	todo, err := s.repo.GetTodo(ctx, id, title)
+	if err != nil {
+		if errors.Is(err, tododomain.ErrNotFound) {
+			return nil, err
+		}
+		return nil, fmt.Errorf("failed to get todo: %w", err)
+	}
+	return todo, nil
+}

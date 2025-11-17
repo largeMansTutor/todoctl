@@ -176,3 +176,15 @@ func TestUpdateTodos(t *testing.T) {
 }
 
 func stringPtr[T any](i T) *T { return &i }
+
+func TestGetTodo(t *testing.T) {
+	repo := mocks.NewRepository(t)
+	repo.On("GetTodo", mock.Anything, uint64(1), "").Return(&tododomain.Todo{ID: 1, Title: "x"}, nil)
+	svc := NewService(repo, nil)
+
+	todo, err := svc.GetTodo(context.Background(), 1, "")
+	require.NoError(t, err)
+	require.NotNil(t, todo)
+	require.Equal(t, uint64(1), todo.ID)
+	repo.AssertExpectations(t)
+}

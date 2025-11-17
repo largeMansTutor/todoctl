@@ -21,6 +21,9 @@ type App struct {
 
 // New constructs a App with the provided service.
 func New(cfg *config.Config, svc *todousecase.Service, limiter *httpadapter.RateLimiter, metrics *metrics.Provider, logger *zap.Logger) *App {
+	if logger == nil {
+		logger = zap.NewNop()
+	}
 	return &App{
 		cfg:         cfg,
 		svc:         svc,

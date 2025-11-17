@@ -7,6 +7,9 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/golang-migrate/migrate/v4"
+	mysqlmigrate "github.com/golang-migrate/migrate/v4/database/mysql"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 
@@ -62,23 +65,38 @@ func ProvideDB() fx.Option {
 	})
 }
 
-// MigrateUp executes all migration statements within the provided
-// statements slice. Each statement should be idempotent. Errors halt
-// execution. This is a simplistic migration helper and intentionally
-// conservative: it does not handle rolling back partially applied
-// migrations. In production use a real migration tool.
-func MigrateUp(ctx context.Context, db *sql.DB, statements []string) error {
-	tx, err := db.BeginTx(ctx, nil)
+// MigrateUp applies filesystem migrations using golang-migrate against the
+// provided DB handle. Applied versions are tracked in schema_migrations to
+// prevent duplicate runs and ensure safe, repeatable deployments.
+func MigrateUp(ctx context.Context, db *sql.DB, migrationsPath string) error {
+	if db == nil {
+		return fmt.Errorf("db is nil")
+	}
+	if migrationsPath == "" {
+		return fmt.Errorf("migrationsPath is required")
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
+		return fmt.Errorf("ping database: %w", err)
+	}
+
+	driver, err := mysqlmigrate.WithInstance(db, &mysqlmigrate.Config{
+		MigrationsTable: "schema_migrations",
+	})
 	if err != nil {
-		return err
+		return fmt.Errorf("prepare migrate driver: %w", err)
 	}
-	defer func() {
-		_ = tx.Rollback() // rollback will be a no-op if commit was successful
-	}()
-	for _, stmt := range statements {
-		if _, err := tx.ExecContext(ctx, stmt); err != nil {
-			return fmt.Errorf("migration failed: %w; statement: %s", err, stmt)
-		}
+
+	sourceURL := fmt.Sprintf("file://%s", migrationsPath)
+	m, err := migrate.NewWithDatabaseInstance(sourceURL, "mysql", driver)
+	if err != nil {
+		return fmt.Errorf("load migrations: %w", err)
 	}
-	return tx.Commit()
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("apply migrations: %w", err)
+	}
+	return nil
 }

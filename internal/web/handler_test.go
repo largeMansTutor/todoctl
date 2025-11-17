@@ -2,10 +2,12 @@ package web
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -228,6 +230,25 @@ func TestListTodosHandler(t *testing.T) {
 			repo.AssertExpectations(t)
 		})
 	}
+}
+
+func TestGetTodoHandler(t *testing.T) {
+	repo := mocks.NewRepository(t)
+	repo.On("GetTodo", mock.Anything, uint64(1), "").Return(&tododomain.Todo{ID: 1, Title: "x"}, nil)
+	svc := todousecase.NewService(repo, nil)
+	h := New(&config.Config{}, svc, nil, nil, zap.NewNop())
+
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", "1")
+	req := httptest.NewRequest(http.MethodGet, "/todos/1", nil)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	rec := httptest.NewRecorder()
+
+	h.GetTodo(rec, req)
+
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Contains(t, rec.Body.String(), `"id":1`)
+	repo.AssertExpectations(t)
 }
 
 func stringPtr[T any](v T) *T {

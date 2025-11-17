@@ -10,6 +10,7 @@ func (h *App) Mount(router httpadapter.Router) {
 		if h.rateLimiter != nil {
 			protected.Use(h.rateLimiter.Middleware)
 		}
+		protected.Get("/todos/{id}", h.GetTodo)
 		protected.Post("/todos", h.CreateTodos)
 		protected.Patch("/todos", h.UpdateTodos)
 		protected.Get("/todos", h.ListTodos)
