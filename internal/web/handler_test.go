@@ -13,8 +13,8 @@ import (
 	"github.com/thetrollfarmercodes/todoctl/todo/internal/core/idempotency"
 	tododomain "github.com/thetrollfarmercodes/todoctl/todo/internal/core/todo"
 	"github.com/thetrollfarmercodes/todoctl/todo/internal/platform/config"
-	todousecase "github.com/thetrollfarmercodes/todoctl/todo/internal/usecase/todo"
-	"github.com/thetrollfarmercodes/todoctl/todo/internal/usecase/todo/mocks"
+	todousecase "github.com/thetrollfarmercodes/todoctl/todo/internal/service/todo"
+	"github.com/thetrollfarmercodes/todoctl/todo/internal/service/todo/mocks"
 	"go.uber.org/zap"
 )
 

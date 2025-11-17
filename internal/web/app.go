@@ -3,7 +3,7 @@ package web
 import (
 	"github.com/thetrollfarmercodes/todoctl/todo/internal/platform/config"
 	"github.com/thetrollfarmercodes/todoctl/todo/internal/platform/metrics"
-	todousecase "github.com/thetrollfarmercodes/todoctl/todo/internal/usecase/todo"
+	todousecase "github.com/thetrollfarmercodes/todoctl/todo/internal/service/todo"
 	"github.com/thetrollfarmercodes/todoctl/todo/pkg/httpadapter"
 	"go.uber.org/zap"
 )

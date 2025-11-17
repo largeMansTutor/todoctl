@@ -10,7 +10,7 @@ import (
 
 	"github.com/thetrollfarmercodes/todoctl/todo/internal/core/idempotency"
 	tododomain "github.com/thetrollfarmercodes/todoctl/todo/internal/core/todo"
-	"github.com/thetrollfarmercodes/todoctl/todo/internal/usecase/todo/mocks"
+	"github.com/thetrollfarmercodes/todoctl/todo/internal/service/todo/mocks"
 )
 
 func TestCreateTodos(t *testing.T) {

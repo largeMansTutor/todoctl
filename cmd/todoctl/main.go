@@ -12,7 +12,6 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	mysqlmigrate "github.com/golang-migrate/migrate/v4/database/mysql"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	mysqlstorage "github.com/thetrollfarmercodes/todoctl/todo/internal/adapter/storage/mysql"
 	"github.com/thetrollfarmercodes/todoctl/todo/internal/core/idempotency"
 	tododomain "github.com/thetrollfarmercodes/todoctl/todo/internal/core/todo"
 	"github.com/thetrollfarmercodes/todoctl/todo/internal/platform/config"
@@ -20,7 +19,8 @@ import (
 	loggerfx "github.com/thetrollfarmercodes/todoctl/todo/internal/platform/logger"
 	"github.com/thetrollfarmercodes/todoctl/todo/internal/platform/metrics"
 	"github.com/thetrollfarmercodes/todoctl/todo/internal/platform/telemetry"
-	todousecase "github.com/thetrollfarmercodes/todoctl/todo/internal/usecase/todo"
+	todousecase "github.com/thetrollfarmercodes/todoctl/todo/internal/service/todo"
+	mysqlstorage2 "github.com/thetrollfarmercodes/todoctl/todo/internal/storage/mysql"
 	webapi "github.com/thetrollfarmercodes/todoctl/todo/internal/web"
 	"github.com/thetrollfarmercodes/todoctl/todo/pkg/httpadapter"
 
@@ -58,10 +58,10 @@ func main() {
 				mysqlfx.ProvideDB(),
 				fx.Provide(
 					func(db *sql.DB) tododomain.Repository {
-						return mysqlstorage.NewTodoRepository(db)
+						return mysqlstorage2.NewTodoRepository(db)
 					},
 					func(db *sql.DB) idempotency.Store {
-						return mysqlstorage.NewIdempotencyStore(db)
+						return mysqlstorage2.NewIdempotencyStore(db)
 					},
 					todousecase.NewService,
 					fx.Annotate(webapi.New, fx.As(new(httpadapter.RouteMounter)), fx.ResultTags(`group:"routes"`)),

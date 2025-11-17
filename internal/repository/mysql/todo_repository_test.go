@@ -37,3 +37,7 @@ func timePtr(t time.Time) **time.Time {
 	ptr := &t
 	return &ptr
 }
+
+func ptr[T any](v T) *T {
+	return &v
+}
