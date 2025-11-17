@@ -9,10 +9,18 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/thetrollfarmercodes/todoctl/todo/internal/platform/config"
+	"github.com/thetrollfarmercodes/todoctl/todo/pkg/httpadapter"
 )
 
 func TestConfigureTracerProvider_NoEndpoint(t *testing.T) {
-	cfg := &config.Config{OTELServiceName: "test", OTELExporterEndpoint: ""}
+	cfg := &config.Config{
+		HTTPConfig: httpadapter.HTTPConfig{
+			OTELConfig: httpadapter.OTELConfig{
+				OTELServiceName:      "test",
+				OTELExporterEndpoint: "",
+			},
+		},
+	}
 	logger := zap.NewNop()
 	app := fx.New(
 		fx.Provide(func() *config.Config { return cfg }),

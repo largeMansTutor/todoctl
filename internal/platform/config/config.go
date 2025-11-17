@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/spf13/viper"
+	"github.com/thetrollfarmercodes/todoctl/todo/pkg/httpadapter"
 )
 
 // Config contains all configurable values for the application. It is loaded
@@ -22,15 +23,7 @@ import (
 // Default values are sensible for local development; production deployments
 // should override them via environment variables.
 type Config struct {
-	// HTTP server configuration
-	HTTPPort     int           `mapstructure:"APP_PORT"`
-	ReadTimeout  time.Duration `mapstructure:"APP_READ_TIMEOUT"`
-	WriteTimeout time.Duration `mapstructure:"APP_WRITE_TIMEOUT"`
-	IdleTimeout  time.Duration `mapstructure:"APP_IDLE_TIMEOUT"`
-	MaxBodyBytes int64         `mapstructure:"APP_MAX_BODY_BYTES"`
-	TLSCertFile  string        `mapstructure:"APP_TLS_CERT_FILE"`
-	TLSKeyFile   string        `mapstructure:"APP_TLS_KEY_FILE"`
-
+	httpadapter.HTTPConfig `mapstructure:",squash"`
 	// Database connection string (DSN). The DSN should be in the
 	// format accepted by go-sql-driver/mysql. It can include
 	// connection parameters (e.g. charset, parseTime, loc).
@@ -46,10 +39,6 @@ type Config struct {
 	// Rate limiting configuration (per-IP or per-API-key).
 	RateLimitPerSecond int `mapstructure:"APP_RATE_LIMIT_PER_SECOND"`
 	RateLimitBurst     int `mapstructure:"APP_RATE_LIMIT_BURST"`
-
-	// Observability
-	OTELExporterEndpoint string `mapstructure:"OTEL_EXPORTER_OTLP_ENDPOINT"`
-	OTELServiceName      string `mapstructure:"OTEL_SERVICE_NAME"`
 }
 
 // New loads configuration values from environment variables. If a value
