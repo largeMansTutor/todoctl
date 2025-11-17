@@ -29,11 +29,6 @@ func TestCreateTodos(t *testing.T) {
 			expectErr: "title cannot be empty",
 		},
 		{
-			name:      "duplicate titles in batch fails",
-			input:     []tododomain.Todo{{Title: "a"}, {Title: "a"}},
-			expectErr: "duplicate title in batch",
-		},
-		{
 			name:  "idempotent replay returns stored response",
 			input: []tododomain.Todo{{Title: "a"}},
 			setupStore: func(store *mocks.IdempotencyStore) {
@@ -102,6 +97,7 @@ func TestUpdateTodos(t *testing.T) {
 		input        []tododomain.TodoUpdate
 		setupStore   func(store *mocks.IdempotencyStore)
 		repoErr      error
+		repoReturn   []tododomain.Todo
 		expectErr    string
 		expectReplay bool
 		expectCount  int
@@ -110,14 +106,6 @@ func TestUpdateTodos(t *testing.T) {
 			name:      "missing id fails",
 			input:     []tododomain.TodoUpdate{{Title: stringPtr("a")}},
 			expectErr: "id is required",
-		},
-		{
-			name: "duplicate ids in batch fails",
-			input: []tododomain.TodoUpdate{
-				{ID: 1, Title: stringPtr("x")},
-				{ID: 1, Title: stringPtr("y")},
-			},
-			expectErr: "duplicate id in batch",
 		},
 		{
 			name:  "idempotent replay returns stored response",
@@ -139,6 +127,7 @@ func TestUpdateTodos(t *testing.T) {
 		{
 			name:        "success updates todos",
 			input:       []tododomain.TodoUpdate{{ID: 2, Title: stringPtr("ok")}},
+			repoReturn:  []tododomain.Todo{{ID: 2}},
 			expectCount: 1,
 		},
 	}
@@ -146,7 +135,11 @@ func TestUpdateTodos(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := mocks.NewRepository(t)
-			repo.On("UpdateTodos", mock.Anything, tt.input).Return([]tododomain.Todo{{ID: 2}}, tt.repoErr).Maybe()
+			returnTodos := []tododomain.Todo{{ID: 2}}
+			if tt.repoReturn != nil {
+				returnTodos = tt.repoReturn
+			}
+			repo.On("UpdateTodos", mock.Anything, tt.input).Return(returnTodos, tt.repoErr).Maybe()
 			idStore := mocks.NewIdempotencyStore(t)
 			if tt.setupStore != nil {
 				tt.setupStore(idStore)

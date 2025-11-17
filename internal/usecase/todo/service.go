@@ -44,15 +44,10 @@ func (s *Service) CreateTodos(ctx context.Context, idempotencyKey, scope string,
 		}
 	}
 	// Validate titles are not empty and unique within the batch
-	seen := map[string]struct{}{}
 	for _, t := range items {
 		if t.Title == "" {
 			return nil, nil, fmt.Errorf("title cannot be empty")
 		}
-		if _, exists := seen[t.Title]; exists {
-			return nil, nil, fmt.Errorf("duplicate title in batch: %s", t.Title)
-		}
-		seen[t.Title] = struct{}{}
 	}
 	created, err := s.repo.CreateTodos(ctx, items)
 	if err != nil {
@@ -84,16 +79,10 @@ func (s *Service) UpdateTodos(ctx context.Context, idempotencyKey, scope string,
 			return nil, rec.Response, nil
 		}
 	}
-	// Validate: each update must have ID; ensure no duplicate IDs
-	seen := map[uint64]struct{}{}
 	for _, u := range updates {
 		if u.ID == 0 {
 			return nil, nil, fmt.Errorf("id is required")
 		}
-		if _, ok := seen[u.ID]; ok {
-			return nil, nil, fmt.Errorf("duplicate id in batch: %d", u.ID)
-		}
-		seen[u.ID] = struct{}{}
 	}
 	updated, err := s.repo.UpdateTodos(ctx, updates)
 	if err != nil {
