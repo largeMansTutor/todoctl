@@ -43,6 +43,8 @@ jobs:
     services:
       docker:
         image: docker:24.0-dind
+        env:
+          DOCKER_TLS_CERTDIR: ""
         ports:
           - 2375:2375
         options: >-
@@ -60,11 +62,10 @@ jobs:
         with:
           go-version: '1.25'
       - name: Enable Docker environment
-        run: |
-          export DOCKER_HOST=tcp://localhost:2375
-          docker info
-      - name: Run integration tests
         env:
           DOCKER_HOST: tcp://localhost:2375
+          DOCKER_TLS_CERTDIR: ""
+        run: docker info
+      - name: Run integration tests
         run: |
-          go test -tags=integration ./internal/repository/mysql ./internal/web
+          DOCKER_HOST=tcp://localhost:2375 DOCKER_TLS_CERTDIR="" go test -tags=integration ./internal/repository/mysql ./internal/web

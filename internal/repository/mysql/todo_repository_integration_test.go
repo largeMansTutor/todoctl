@@ -83,7 +83,7 @@ func startMySQLContainer(t *testing.T, ctx context.Context) (testcontainers.Cont
 		Image:        "mysql:8.0",
 		Env:          map[string]string{"MYSQL_ROOT_PASSWORD": "example", "MYSQL_DATABASE": "todos"},
 		ExposedPorts: []string{"3306/tcp"},
-		WaitingFor:   wait.ForLog("ready for connections").WithStartupTimeout(90 * time.Second),
+		WaitingFor:   wait.ForLog("ready for connections").WithStartupTimeout(150 * time.Second),
 	}
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: req,
@@ -100,11 +100,11 @@ func startMySQLContainer(t *testing.T, ctx context.Context) (testcontainers.Cont
 	db, err := sql.Open("mysql", dsn)
 	require.NoError(t, err)
 
-	for i := 0; i < 15; i++ {
+	for i := 0; i < 30; i++ {
 		if pingErr := db.PingContext(ctx); pingErr == nil {
 			return container, db, dsn
 		}
-		time.Sleep(time.Second)
+		time.Sleep(2 * time.Second)
 	}
 	require.NoError(t, db.PingContext(ctx))
 	return container, db, dsn
