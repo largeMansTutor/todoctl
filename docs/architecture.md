@@ -6,7 +6,7 @@ This document presents a high‑level overview of the Todo service architecture.
 
 The service consists of a CLI application (`todoctl`) that exposes two subcommands: `api` and `migrate`. The `api` command spins up an HTTP server exposing REST endpoints for managing todos, while `migrate` applies database schema migrations. The server is built using the `chi` router with structured logging and API key support. A MySQL database persists data. Idempotency is implemented to safely retry mutating requests.
 
-## Mermaid Diagram
+
 
 ```mermaid
 flowchart LR
@@ -81,14 +81,3 @@ Several measures are taken to harden the service:
 - **Parameterized Queries**: All SQL statements use prepared statements with parameters, mitigating SQL injection risks.
 - **Graceful Shutdown**: Fx lifecycle hooks gracefully close the database connection and the HTTP server. Requests in flight are given time to complete before shutdown.
 
-## Future Enhancements
-
-To further improve robustness and observability, consider implementing:
-
-- **TLS**: Terminate TLS to encrypt traffic in transit.
-- **Rate Limiting**: Per‑IP or per‑API key rate limits to mitigate brute force attempts.
-- **Prometheus Metrics**: Expose metrics for request rates, latencies, and DB metrics.
-- **OpenTelemetry Tracing**: Instrument the service with distributed tracing for end‑to‑end latency analysis.
-- **Real Migration Tool**: Integrate `golang-migrate` for versioned migrations including down migrations.
-
-The current design provides a solid foundation for a production‑ready API, balancing simplicity with best practices in security and maintainability.

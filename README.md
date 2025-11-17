@@ -108,8 +108,6 @@ Migrations are stored in the `migrations/` directory. Run them via `todoctl migr
 
 ## Security Notes
 
-This application follows several best practices for secure CLI and web services:
-
 - Secrets and credentials are provided via environment variables rather than committed into source control.
 - API key authentication can be enabled or disabled without code changes.
 - Request bodies are size‑limited and parsed carefully to prevent panics and memory exhaustion.
@@ -117,4 +115,3 @@ This application follows several best practices for secure CLI and web services:
 - Errors are sanitized and do not leak sensitive information.
 - The code uses Fx for dependency injection and lifecycle management, ensuring proper resource cleanup.
 
-Please review `docs/architecture.md` for a deeper architectural overview and security considerations.

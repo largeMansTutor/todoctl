@@ -93,6 +93,10 @@ func startMySQLContainer(t *testing.T, ctx context.Context) (testcontainers.Cont
 
 	host, err := container.Host(ctx)
 	require.NoError(t, err)
+	if host == "localhost" {
+		// Force IPv4 loopback for remote Docker hosts that don't listen on ::1.
+		host = "127.0.0.1"
+	}
 	port, err := container.MappedPort(ctx, "3306/tcp")
 	require.NoError(t, err)
 
