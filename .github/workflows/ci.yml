@@ -43,10 +43,10 @@ jobs:
     services:
       docker:
         image: docker:24.0-dind
-        privileged: true
         ports:
           - 2375:2375
         options: >-
+          --privileged
           --dns 8.8.8.8
           --dns 8.8.4.4
           --health-cmd "docker info"
