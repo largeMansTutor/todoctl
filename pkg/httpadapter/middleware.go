@@ -122,3 +122,25 @@ func Recoverer(logger *zap.Logger) func(http.Handler) http.Handler {
 		})
 	}
 }
+
+// SecurityHeaders sets a minimal set of defensive headers to reduce common
+// OWASP-category risks (clickjacking, MIME sniffing, XSS). For APIs this is
+// lightweight and safe; values are chosen to avoid breaking typical clients.
+func SecurityHeaders() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			w.Header().Set("X-Frame-Options", "DENY")
+			w.Header().Set("Referrer-Policy", "no-referrer")
+			// Allows browser XSS filters
+			w.Header().Set("X-XSS-Protection", "1; mode=block")
+			// API responses shouldn't be rendered; lock down content execution.
+			w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
+			// Avoid caching potentially sensitive responses by intermediaries.
+			w.Header().Set("Cache-Control", "no-store")
+			// Disable access to powerful features by default.
+			w.Header().Set("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+			next.ServeHTTP(w, r)
+		})
+	}
+}

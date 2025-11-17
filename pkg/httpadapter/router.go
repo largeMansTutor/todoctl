@@ -24,15 +24,19 @@ func NewRouter(cfg *HTTPConfig, logger *zap.Logger, metrics MetricsProvider, mou
 	r.Use(middleware.RequestID)
 	r.Use(Logger(logger))
 	r.Use(Recoverer(logger))
+	r.Use(SecurityHeaders())
 	r.Use(MaxBytes(cfg.MaxBodyBytes))
 	// Timeout: create a per-request context with a deadline.
 	r.Use(middleware.Timeout(cfg.ReadTimeout))
+
+	if metrics != nil {
+		r.Use(metrics.Middleware)
+	}
 
 	r.Get("/healthz", Health)
 
 	// Metrics endpoint
 	if metrics != nil {
-		r.Use(metrics.Middleware)
 		r.Handle("/metrics", metrics.Handler())
 	}
 	for _, m := range mounters {

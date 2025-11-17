@@ -1,0 +1,215 @@
+openapi: 3.0.3
+info:
+  title: Todo API
+  version: 1.0.0
+  description: |
+    A simple bulk todo API supporting creation, partial updates and listing with pagination.
+servers:
+  - url: http://localhost:8080
+paths:
+  /v1/todos:
+    post:
+      summary: Create multiple todos
+      description: Create new todo items. Titles must be unique. Returns created todos.
+      operationId: createTodos
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          description: Optional idempotency key for safe retries
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                todos:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/TodoInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoList'
+        '409':
+          description: Duplicate title
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      summary: Update multiple todos
+      description: Partially update existing todos by id. Only fields present will be modified.
+      operationId: updateTodos
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                todos:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/TodoUpdate'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoList'
+        '409':
+          description: Duplicate title
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      summary: List todos
+      description: Retrieve todos with pagination. Use either page/limit or cursor/limit.
+      operationId: listTodos
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+          description: Page number (1-based)
+        - in: query
+          name: limit
+          schema:
+            type: integer
+          description: Items per page (1–100)
+        - in: query
+          name: cursor
+          schema:
+            type: string
+          description: Opaque cursor for keyset pagination
+      responses:
+        '200':
+          description: A list of todos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  todos:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Todo'
+                  next_cursor:
+                    type: string
+                    nullable: true
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+  /healthz:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+          content:
+            text/plain:
+              schema:
+                type: string
+  /readyz:
+    get:
+      summary: Readiness check
+      responses:
+        '200':
+          description: Ready
+          content:
+            text/plain:
+              schema:
+                type: string
+components:
+  schemas:
+    Todo:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: uint64
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+        complete:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    TodoInput:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+        complete:
+          type: boolean
+    TodoUpdate:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+          format: uint64
+        title:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+        complete:
+          type: boolean
+          nullable: true
+    TodoList:
+      type: object
+      properties:
+        todos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Todo'
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            message:
+              type: string
