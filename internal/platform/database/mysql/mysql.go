@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	// MySQL driver
 	_ "github.com/go-sql-driver/mysql"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -62,13 +61,6 @@ func ProvideDB() fx.Option {
 		return db, nil
 	})
 }
-
-// MigrationSource defines the embedded SQL migrations. In this simple
-// implementation we rely on external migration tools (e.g. golang-migrate)
-// to apply the files under migrations/. The Migrate functions below
-// provide a convenience to execute migrations during development. They are
-// not used automatically in production; the user must run migrations via
-// the CLI.
 
 // MigrateUp executes all migration statements within the provided
 // statements slice. Each statement should be idempotent. Errors halt

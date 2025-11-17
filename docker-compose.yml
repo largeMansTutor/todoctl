@@ -22,6 +22,7 @@ services:
       APP_PORT: 8080
       DB_DSN: root:example@tcp(db:3306)/todos?parseTime=true&charset=utf8mb4&loc=UTC&multiStatements=true
       APP_API_KEY: dev-key
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
     ports:
       - "8080:8080"
     depends_on:
@@ -40,6 +41,37 @@ services:
       db:
         condition: service_healthy
     restart: "no"
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=24h"]
+    ports:
+      - "9090:9090"
+    depends_on:
+      api:
+        condition: service_started
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      prometheus:
+        condition: service_started
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "4318:4318"     # OTLP HTTP
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
 
 volumes:
   db_data:

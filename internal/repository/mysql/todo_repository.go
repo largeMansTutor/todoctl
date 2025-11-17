@@ -208,6 +208,31 @@ func (m *mysqlRepo) ListTodos(ctx context.Context, page int, limit int, cursor s
 	return todos, nextCursor, nil
 }
 
+// GetTodo fetches a todo by id or title. At least one must be provided.
+func (m *mysqlRepo) GetTodo(ctx context.Context, id uint64, title string) (*tododomain.Todo, error) {
+	query := "SELECT id, title, description, due_date, complete, created_at, updated_at FROM todos WHERE "
+	var args []any
+	switch {
+	case id != 0:
+		query += "id = ?"
+		args = append(args, id)
+	case title != "":
+		query += "title = ?"
+		args = append(args, title)
+	default:
+		return nil, fmt.Errorf("id or title required")
+	}
+	row := m.db.QueryRowContext(ctx, query, args...)
+	var todo tododomain.Todo
+	if err := row.Scan(&todo.ID, &todo.Title, &todo.Description, &todo.DueDate, &todo.Complete, &todo.CreatedAt, &todo.UpdatedAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, tododomain.ErrNotFound
+		}
+		return nil, err
+	}
+	return &todo, nil
+}
+
 func isDuplicate(err error) bool {
 	var mysqlErr *driver.MySQLError
 	return errors.As(err, &mysqlErr) && mysqlErr.Number == 1062

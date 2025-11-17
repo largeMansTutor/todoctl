@@ -21,4 +21,5 @@ COPY --from=builder /app/todo /usr/local/bin/todo
 COPY --from=builder /app/migrations /app/migrations
 ENV APP_PORT=8080
 EXPOSE 8080
+USER nonroot:nonroot
 ENTRYPOINT ["/usr/local/bin/todo", "api"]

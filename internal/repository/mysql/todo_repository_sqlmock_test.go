@@ -79,3 +79,22 @@ func TestListTodos_WithSQLMock(t *testing.T) {
 	require.Equal(t, "", next)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
+
+func TestGetTodo_ByID_WithSQLMock(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	require.NoError(t, err)
+	defer db.Close()
+
+	repo := NewTodoRepository(db)
+
+	mock.ExpectQuery("SELECT id, title, description, due_date, complete, created_at, updated_at FROM todos WHERE id = ?").
+		WithArgs(uint64(1)).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "title", "description", "due_date", "complete", "created_at", "updated_at"}).
+			AddRow(uint64(1), "title", nil, sql.NullTime{}, false, time.Now(), time.Now()))
+
+	todo, err := repo.GetTodo(context.Background(), 1, "")
+	require.NoError(t, err)
+	require.NotNil(t, todo)
+	require.Equal(t, uint64(1), todo.ID)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
