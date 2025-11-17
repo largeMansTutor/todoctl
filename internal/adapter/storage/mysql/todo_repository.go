@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	driver "github.com/go-sql-driver/mysql"
 	tododomain "github.com/thetrollfarmercodes/todoctl/todo/internal/core/todo"
 )
 
@@ -81,36 +82,23 @@ func (m *mysqlRepo) UpdateTodos(ctx context.Context, updates []tododomain.TodoUp
 	defer func() {
 		_ = tx.Rollback()
 	}()
+	setClauses := make([]string, 0, 4)
+	args := make([]any, 0, 5)
 	for _, u := range updates {
-		setClauses := []string{}
-		args := []interface{}{}
-		if u.Title != nil {
-			setClauses = append(setClauses, "title = ?")
-			args = append(args, *u.Title)
-		}
-		if u.Description != nil {
-			setClauses = append(setClauses, "description = ?")
-			args = append(args, *u.Description)
-		}
-		if u.DueDate != nil {
-			setClauses = append(setClauses, "due_date = ?")
-			args = append(args, *u.DueDate)
-		}
-		if u.Complete != nil {
-			setClauses = append(setClauses, "complete = ?")
-			args = append(args, *u.Complete)
-		}
-		if len(setClauses) == 0 {
+		query, setClausesBuf, argsBuf, ok := buildUpdateQuery(u, setClauses, args)
+		setClauses = setClausesBuf
+		args = argsBuf
+		if !ok {
 			continue
 		}
-		args = append(args, u.ID)
-		query := fmt.Sprintf("UPDATE todos SET %s WHERE id = ?", joinClauses(setClauses))
+
 		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 			if isDuplicate(err) {
 				return nil, fmt.Errorf("duplicate title: %w", tododomain.ErrDuplicateTitle)
 			}
 			return nil, err
 		}
+
 		var todo tododomain.Todo
 		row := tx.QueryRowContext(ctx, `SELECT id, title, description, due_date, complete, created_at, updated_at FROM todos WHERE id = ?`, u.ID)
 		if err := row.Scan(&todo.ID, &todo.Title, &todo.Description, &todo.DueDate, &todo.Complete, &todo.CreatedAt, &todo.UpdatedAt); err != nil {
@@ -125,6 +113,39 @@ func (m *mysqlRepo) UpdateTodos(ctx context.Context, updates []tododomain.TodoUp
 		return nil, err
 	}
 	return out, nil
+}
+
+func buildUpdateQuery(u tododomain.TodoUpdate, setClauses []string, args []any) (string, []string, []any, bool) {
+	// reuse the backing arrays by reslicing to zero length
+	setClauses = setClauses[:0]
+	args = args[:0]
+
+	if u.Title != nil {
+		setClauses = append(setClauses, "title = ?")
+		args = append(args, *u.Title)
+	}
+	if u.Description != nil {
+		setClauses = append(setClauses, "description = ?")
+		args = append(args, *u.Description)
+	}
+	if u.DueDate != nil {
+		setClauses = append(setClauses, "due_date = ?")
+		args = append(args, *u.DueDate)
+	}
+	if u.Complete != nil {
+		setClauses = append(setClauses, "complete = ?")
+		args = append(args, *u.Complete)
+	}
+
+	if len(setClauses) == 0 {
+		return "", setClauses, args, false
+	}
+
+	// WHERE id = ? is always appended as the last argument
+	args = append(args, u.ID)
+	query := fmt.Sprintf("UPDATE todos SET %s WHERE id = ?", strings.Join(setClauses, ", "))
+
+	return query, setClauses, args, true
 }
 
 // ListTodos implements both offset and keyset pagination. It returns the
@@ -187,20 +208,7 @@ func (m *mysqlRepo) ListTodos(ctx context.Context, page int, limit int, cursor s
 	return todos, nextCursor, nil
 }
 
-func joinClauses(clauses []string) string {
-	result := ""
-	for i, c := range clauses {
-		if i > 0 {
-			result += ", "
-		}
-		result += c
-	}
-	return result
-}
-
 func isDuplicate(err error) bool {
-	if err == nil {
-		return false
-	}
-	return strings.Contains(err.Error(), "Error 1062")
+	var mysqlErr *driver.MySQLError
+	return errors.As(err, &mysqlErr) && mysqlErr.Number == 1062
 }
