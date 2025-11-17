@@ -67,5 +67,11 @@ jobs:
           DOCKER_TLS_CERTDIR: ""
         run: docker info
       - name: Run integration tests
+        env:
+          DOCKER_HOST: tcp://localhost:2375
+          DOCKER_TLS_CERTDIR: ""
+          DOCKER_DRIVER: overlay2
+          TESTCONTAINERS_RYUK_DISABLED: "true"
+          TEST: "true"
         run: |
-          DOCKER_HOST=tcp://localhost:2375 DOCKER_TLS_CERTDIR="" go test -tags=integration ./internal/repository/mysql ./internal/web
+          go test -tags=integration ./internal/repository/mysql ./internal/web
