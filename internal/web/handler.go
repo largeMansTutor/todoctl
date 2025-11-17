@@ -1,4 +1,4 @@
-package httpadapter
+package web
 
 import (
 	"encoding/json"
@@ -6,35 +6,45 @@ import (
 	"strconv"
 	"strings"
 
-	tododomain "github.com/thetrollfarmercodes/todoctl/todo/internal/core/todo"
+	"github.com/thetrollfarmercodes/todoctl/todo/internal/platform/config"
 	"github.com/thetrollfarmercodes/todoctl/todo/internal/platform/metrics"
 	todousecase "github.com/thetrollfarmercodes/todoctl/todo/internal/usecase/todo"
+	"github.com/thetrollfarmercodes/todoctl/todo/pkg/httpadapter"
+	"go.uber.org/zap"
 )
 
-// Handler encapsulates all HTTP handlers and their dependencies. It
+// App encapsulates all HTTP handlers and their dependencies. It
 // delegates to the todo Service for business logic. The methods on
-// Handler must be registered with the router in router.go.
-type Handler struct {
+// App must be registered with the router in router.go.
+type App struct {
+	cfg         *config.Config
 	svc         *todousecase.Service
-	rateLimiter *RateLimiter
+	rateLimiter *httpadapter.RateLimiter
 	metrics     *metrics.Provider
+	logger      *zap.Logger
 }
 
-// NewHandler constructs a Handler with the provided service.
-func NewHandler(svc *todousecase.Service, limiter *RateLimiter, metrics *metrics.Provider) *Handler {
-	return &Handler{svc: svc, rateLimiter: limiter, metrics: metrics}
+// New constructs a App with the provided service.
+func New(cfg *config.Config, svc *todousecase.Service, limiter *httpadapter.RateLimiter, metrics *metrics.Provider, logger *zap.Logger) *App {
+	return &App{
+		cfg:         cfg,
+		svc:         svc,
+		rateLimiter: limiter,
+		metrics:     metrics,
+		logger:      logger,
+	}
 }
 
 // CreateTodos handles POST /todos. It expects a JSON payload with
 // a "todos" field containing an array of objects. It returns the
 // created todos. If the request includes an Idempotency-Key header,
 // the result is replayed when possible.
-func (h *Handler) CreateTodos(w http.ResponseWriter, r *http.Request) {
+func (h *App) CreateTodos(w http.ResponseWriter, r *http.Request) {
 	var payload struct {
-		Todos []tododomain.Todo `json:"todos"`
+		Todos DedupTodos `json:"todos"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		httpError(w, http.StatusBadRequest, "invalid JSON")
+		httpadapter.HttpError(w, http.StatusBadRequest, "invalid JSON")
 		return
 	}
 	// Extract idempotency key
@@ -44,10 +54,10 @@ func (h *Handler) CreateTodos(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Determine status code based on error
 		if strings.Contains(err.Error(), "duplicate") {
-			httpError(w, http.StatusConflict, err.Error())
+			httpadapter.HttpError(w, http.StatusConflict, err.Error())
 			return
 		}
-		httpError(w, http.StatusBadRequest, err.Error())
+		httpadapter.HttpError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	if replay != nil {
@@ -69,16 +79,16 @@ func (h *Handler) CreateTodos(w http.ResponseWriter, r *http.Request) {
 // "todos" field containing an array of update objects. Only fields
 // present on each object will be updated. Duplicate IDs and empty
 // payloads result in errors. Idempotency is supported.
-func (h *Handler) UpdateTodos(w http.ResponseWriter, r *http.Request) {
+func (h *App) UpdateTodos(w http.ResponseWriter, r *http.Request) {
 	var payload struct {
-		Todos []tododomain.TodoUpdate `json:"todos"`
+		Todos DedupTodosUpdate `json:"todos"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		httpError(w, http.StatusBadRequest, "invalid JSON")
+		httpadapter.HttpError(w, http.StatusBadRequest, "invalid JSON")
 		return
 	}
 	if len(payload.Todos) == 0 {
-		httpError(w, http.StatusBadRequest, "no todos to update")
+		httpadapter.HttpError(w, http.StatusBadRequest, "no todos to update")
 		return
 	}
 	idKey := r.Header.Get("Idempotency-Key")
@@ -86,10 +96,10 @@ func (h *Handler) UpdateTodos(w http.ResponseWriter, r *http.Request) {
 	todos, replay, err := h.svc.UpdateTodos(r.Context(), idKey, scope, payload.Todos)
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate") {
-			httpError(w, http.StatusConflict, err.Error())
+			httpadapter.HttpError(w, http.StatusConflict, err.Error())
 			return
 		}
-		httpError(w, http.StatusBadRequest, err.Error())
+		httpadapter.HttpError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	if replay != nil {
@@ -110,7 +120,7 @@ func (h *Handler) UpdateTodos(w http.ResponseWriter, r *http.Request) {
 // 2) keyset pagination via ?cursor=&limit= query parameters. If
 // cursor is provided, page is ignored. It returns an array of todos
 // and next_cursor if more results exist.
-func (h *Handler) ListTodos(w http.ResponseWriter, r *http.Request) {
+func (h *App) ListTodos(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	cursor := q.Get("cursor")
 	page := 1
@@ -127,7 +137,7 @@ func (h *Handler) ListTodos(w http.ResponseWriter, r *http.Request) {
 	}
 	todos, nextCursor, err := h.svc.ListTodos(r.Context(), page, limit, cursor)
 	if err != nil {
-		httpError(w, http.StatusBadRequest, err.Error())
+		httpadapter.HttpError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	resp := map[string]interface{}{
@@ -145,32 +155,4 @@ func (h *Handler) ListTodos(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(resp)
-}
-
-// Healthz returns 200 OK to indicate the service is alive. It can
-// include additional diagnostics if desired.
-func (h *Handler) Healthz(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("ok"))
-}
-
-// Readyz returns 200 OK to indicate the service is ready to accept
-// traffic. In a real deployment this could check dependencies like
-// database connectivity.
-func (h *Handler) Readyz(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("ready"))
-}
-
-// httpError writes a JSON error response with the given status code and
-// message. The message is sanitized to avoid exposing internal
-// information. It sets Content-Type to application/json.
-func httpError(w http.ResponseWriter, status int, msg string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"error": map[string]interface{}{
-			"message": msg,
-		},
-	})
 }

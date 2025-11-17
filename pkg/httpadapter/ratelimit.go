@@ -15,8 +15,7 @@ type RateLimiter struct {
 	limit    rate.Limit
 	burst    int
 	logger   *zap.Logger
-	mu       sync.Mutex
-	limiters map[string]*rate.Limiter
+	limiters sync.Map // map[string]*rate.Limiter
 }
 
 func NewRateLimiter(rps int, burst int, logger *zap.Logger) *RateLimiter {
@@ -24,10 +23,9 @@ func NewRateLimiter(rps int, burst int, logger *zap.Logger) *RateLimiter {
 		return nil
 	}
 	return &RateLimiter{
-		limit:    rate.Limit(rps),
-		burst:    burst,
-		logger:   logger,
-		limiters: make(map[string]*rate.Limiter),
+		limit:  rate.Limit(rps),
+		burst:  burst,
+		logger: logger,
 	}
 }
 
@@ -56,16 +54,9 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 }
 
 func (rl *RateLimiter) getLimiter(key string) *rate.Limiter {
-	rl.mu.Lock()
-	defer rl.mu.Unlock()
-	limiter, ok := rl.limiters[key]
-	if !ok {
-		limiter = rate.NewLimiter(rl.limit, rl.burst)
-		rl.limiters[key] = limiter
-	}
-	return limiter
+	actual, _ := rl.limiters.LoadOrStore(key, rate.NewLimiter(rl.limit, rl.burst))
+	return actual.(*rate.Limiter)
 }
-
 func clientIP(r *http.Request) string {
 	xff := r.Header.Get("X-Forwarded-For")
 	if xff != "" {
