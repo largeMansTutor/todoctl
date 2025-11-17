@@ -36,3 +36,35 @@ jobs:
       - name: Report coverage
         run: |
           go tool cover -func=coverage.out | awk '/^total:/ {print "Total coverage: " $3}'
+
+  integration:
+    runs-on: ubuntu-latest
+    needs: build
+    services:
+      docker:
+        image: docker:24.0-dind
+        privileged: true
+        ports:
+          - 2375:2375
+        options: >-
+          --dns 8.8.8.8
+          --dns 8.8.4.4
+          --health-cmd "docker info"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.25'
+      - name: Enable Docker environment
+        run: |
+          export DOCKER_HOST=tcp://localhost:2375
+          docker info
+      - name: Run integration tests
+        env:
+          DOCKER_HOST: tcp://localhost:2375
+        run: |
+          go test -tags=integration ./internal/repository/mysql ./internal/web
