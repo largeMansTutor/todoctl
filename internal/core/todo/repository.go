@@ -16,9 +16,14 @@ type Repository interface {
 	// cursor is non-empty it takes precedence over page/limit and enables
 	// keyset pagination.
 	ListTodos(ctx context.Context, page int, limit int, cursor string) ([]Todo, string, error)
+	// GetTodo fetches a single todo by id or title.
+	GetTodo(ctx context.Context, id uint64, title string) (*Todo, error)
 }
 
 // ErrDuplicateTitle indicates an attempt to create or update a todo with a
 // title that already exists. The use case layer maps this error to the
 // appropriate HTTP status without depending on storage-specific details.
 var ErrDuplicateTitle = errors.New("duplicate title")
+
+// ErrNotFound indicates the requested todo does not exist.
+var ErrNotFound = errors.New("todo not found")

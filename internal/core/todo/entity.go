@@ -1,6 +1,10 @@
 package todo
 
-import "time"
+import (
+	"fmt"
+	"strings"
+	"time"
+)
 
 // Todo represents a task item. Fields correspond to columns in the
 // database. JSON tags define API serialization names.
@@ -34,4 +38,61 @@ func (t TodoUpdate) Key() uint64 {
 
 func (t Todo) Key() string {
 	return t.Title
+}
+
+func (t *Todo) Sanitize() error {
+	t.Title = strings.TrimSpace(t.Title)
+	if t.Title == "" {
+		return fmt.Errorf("title cannot be empty")
+	}
+	if len(t.Title) > maxTitleLen {
+		return fmt.Errorf("title too long (max %d)", maxTitleLen)
+	}
+	if t.Description != nil {
+		d := strings.TrimSpace(*t.Description)
+		if len(d) > maxDescLen {
+			return fmt.Errorf("description too long (max %d)", maxDescLen)
+		}
+		if d == "" {
+			t.Description = nil
+		} else {
+			t.Description = &d
+		}
+	}
+	return nil
+}
+
+func (t *TodoUpdate) Sanitize() error {
+	if t.Title != nil {
+		title := strings.TrimSpace(*t.Title)
+		if title == "" {
+			return fmt.Errorf("title cannot be empty")
+		}
+		if len(title) > maxTitleLen {
+			return fmt.Errorf("title too long (max %d)", maxTitleLen)
+		}
+		t.Title = &title
+	}
+	if t.Description != nil && *t.Description != nil {
+		desc := strings.TrimSpace(**t.Description)
+		if len(desc) > maxDescLen {
+			return fmt.Errorf("description too long (max %d)", maxDescLen)
+		}
+		if desc == "" {
+			t.Description = nil
+		} else {
+			t.Description = stringPtr(desc)
+		}
+	}
+	return nil
+}
+
+const (
+	maxTitleLen = 255
+	maxDescLen  = 1024
+)
+
+func stringPtr(s string) **string {
+	ptr := &s
+	return &ptr
 }

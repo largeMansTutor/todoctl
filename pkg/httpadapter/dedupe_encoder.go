@@ -14,6 +14,11 @@ type Keyer[K comparable] interface {
 	Key() K
 }
 
+// Sanitizer can normalize/validate itself during decode.
+type Sanitizer interface {
+	Sanitize() error
+}
+
 // DedupByKey is a slice that dedupes itself based on a key during JSON unmarshal.
 // The first instance of a key wins; ordering is preserved.
 type DedupByKey[T Keyer[K], K comparable] []T
@@ -30,9 +35,9 @@ func (d *DedupByKey[T, K]) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("DedupTodosUpdate: expected JSON array")
 	}
 	var decodeErr error
-	dedupSeq := UniqueBy(decoderSeq[T](dec, &decodeErr), func(v T) K {
-		return v.Key()
-	})
+		dedupSeq := UniqueBy(decoderSeq[T](dec, &decodeErr), func(v T) K {
+			return v.Key()
+		})
 	out := slices.Collect(dedupSeq)
 
 	if decodeErr != nil {
@@ -98,6 +103,12 @@ func decoderSeq[T any](dec *json.Decoder, decodeErr *error) iter.Seq[T] {
 			if err := dec.Decode(&v); err != nil {
 				*decodeErr = err
 				return
+			}
+			if s, ok := any(&v).(Sanitizer); ok {
+				if err := s.Sanitize(); err != nil {
+					*decodeErr = err
+					return
+				}
 			}
 			count++
 			if !yield(v) {
