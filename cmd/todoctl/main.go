@@ -5,13 +5,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
 	mysqlmigrate "github.com/golang-migrate/migrate/v4/database/mysql"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	httpadapter "github.com/thetrollfarmercodes/todoctl/todo/internal/adapter/http"
 	mysqlstorage "github.com/thetrollfarmercodes/todoctl/todo/internal/adapter/storage/mysql"
 	"github.com/thetrollfarmercodes/todoctl/todo/internal/core/idempotency"
 	tododomain "github.com/thetrollfarmercodes/todoctl/todo/internal/core/todo"
@@ -21,6 +21,8 @@ import (
 	"github.com/thetrollfarmercodes/todoctl/todo/internal/platform/metrics"
 	"github.com/thetrollfarmercodes/todoctl/todo/internal/platform/telemetry"
 	todousecase "github.com/thetrollfarmercodes/todoctl/todo/internal/usecase/todo"
+	webapi "github.com/thetrollfarmercodes/todoctl/todo/internal/web"
+	"github.com/thetrollfarmercodes/todoctl/todo/pkg/httpadapter"
 
 	"github.com/spf13/cobra"
 	"go.uber.org/fx"
@@ -62,10 +64,12 @@ func main() {
 						return mysqlstorage.NewIdempotencyStore(db)
 					},
 					todousecase.NewService,
-					httpadapter.NewHandler,
-					httpadapter.NewRouter,
+					fx.Annotate(webapi.New, fx.As(new(httpadapter.RouteMounter)), fx.ResultTags(`group:"routes"`)),
+					fx.Annotate(httpadapter.NewRouter, fx.ParamTags("", "", "", `group:"routes"`)),
 				),
-				fx.Invoke(httpadapter.StartHTTPServer),
+				fx.Invoke(func(lc fx.Lifecycle, cfg *config.Config, router http.Handler, logger *zap.Logger) {
+					httpadapter.StartHTTPServer(lc, &cfg.HTTPConfig, router, logger)
+				}),
 			)
 			if err := app.Start(context.Background()); err != nil {
 				return err
