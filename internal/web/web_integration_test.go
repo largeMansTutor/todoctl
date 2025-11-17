@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -99,19 +100,27 @@ func TestHTTPIntegration(t *testing.T) {
 	t.Run("idempotent create replays", func(t *testing.T) {
 		payload := `{"todos":[{"title":"second"}]}`
 		key := "idem-1"
-		req, _ := http.NewRequest(http.MethodPost, server.URL+"/todos", bytes.NewBufferString(payload))
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("X-API-Key", cfg.APIKey)
-		req.Header.Set("Idempotency-Key", key)
+		req1, _ := http.NewRequest(http.MethodPost, server.URL+"/todos", bytes.NewBufferString(payload))
+		req1.Header.Set("Content-Type", "application/json")
+		req1.Header.Set("X-API-Key", cfg.APIKey)
+		req1.Header.Set("Idempotency-Key", key)
 
-		resp1, err := client.Do(req)
+		resp1, err := client.Do(req1)
 		require.NoError(t, err)
-		defer resp1.Body.Close()
 		require.Equal(t, http.StatusCreated, resp1.StatusCode)
+		_, err = io.Copy(io.Discard, resp1.Body)
+		require.NoError(t, err)
+		resp1.Body.Close()
 
-		resp2, err := client.Do(req)
+		req2, _ := http.NewRequest(http.MethodPost, server.URL+"/todos", bytes.NewBufferString(payload))
+		req2.Header.Set("Content-Type", "application/json")
+		req2.Header.Set("X-API-Key", cfg.APIKey)
+		req2.Header.Set("Idempotency-Key", key)
+
+		resp2, err := client.Do(req2)
 		require.NoError(t, err)
 		defer resp2.Body.Close()
+		_, _ = io.Copy(io.Discard, resp2.Body)
 		require.Equal(t, http.StatusCreated, resp2.StatusCode)
 	})
 }
@@ -122,7 +131,7 @@ func startMySQL(t *testing.T, ctx context.Context) (testcontainers.Container, *s
 		Image:        "mysql:8.0",
 		Env:          map[string]string{"MYSQL_ROOT_PASSWORD": "example", "MYSQL_DATABASE": "todos"},
 		ExposedPorts: []string{"3306/tcp"},
-		WaitingFor:   wait.ForLog("ready for connections").WithStartupTimeout(90 * time.Second),
+		WaitingFor:   wait.ForLog("ready for connections").WithStartupTimeout(150 * time.Second),
 	}
 	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{ContainerRequest: req, Started: true})
 	require.NoError(t, err)
@@ -136,11 +145,11 @@ func startMySQL(t *testing.T, ctx context.Context) (testcontainers.Container, *s
 	db, err := sql.Open("mysql", dsn)
 	require.NoError(t, err)
 
-	for i := 0; i < 20; i++ {
+	for i := 0; i < 30; i++ {
 		if err := db.PingContext(ctx); err == nil {
 			return container, db, dsn
 		}
-		time.Sleep(time.Second)
+		time.Sleep(2 * time.Second)
 	}
 	require.NoError(t, db.PingContext(ctx))
 	return container, db, dsn

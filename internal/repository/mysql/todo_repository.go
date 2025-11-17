@@ -200,10 +200,18 @@ func (m *mysqlRepo) ListTodos(ctx context.Context, page int, limit int, cursor s
 		}
 		todos = append(todos, todo)
 	}
-	if cursor != "" && len(todos) > limit {
-		last := todos[limit]
-		nextCursor = base64.URLEncoding.EncodeToString([]byte(fmt.Sprintf("%d", last.ID)))
-		todos = todos[:limit]
+	if cursor != "" {
+		switch {
+		case len(todos) > limit:
+			last := todos[limit]
+			nextCursor = base64.URLEncoding.EncodeToString([]byte(fmt.Sprintf("%d", last.ID)))
+			todos = todos[:limit]
+		case len(todos) > 0:
+			// Even when the result set exactly matches the limit, return a cursor so
+			// clients can continue paginating without guessing whether more remain.
+			last := todos[len(todos)-1]
+			nextCursor = base64.URLEncoding.EncodeToString([]byte(fmt.Sprintf("%d", last.ID)))
+		}
 	}
 	return todos, nextCursor, nil
 }
