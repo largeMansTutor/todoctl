@@ -5,10 +5,10 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"strconv"
 	"testing"
 	"time"
@@ -16,11 +16,13 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	mysqlmigrate "github.com/golang-migrate/migrate/v4/database/mysql"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	migrateiofs "github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"go.uber.org/zap"
 
+	assets "github.com/thetrollfarmercodes/todoctl/todo"
 	"github.com/thetrollfarmercodes/todoctl/todo/internal/platform/config"
 	mysqlstorage "github.com/thetrollfarmercodes/todoctl/todo/internal/repository/mysql"
 	todousecase "github.com/thetrollfarmercodes/todoctl/todo/internal/service/todo"
@@ -148,11 +150,12 @@ func runMigrations(t *testing.T, db *sql.DB, dsn string) {
 	t.Helper()
 	driver, err := mysqlmigrate.WithInstance(db, &mysqlmigrate.Config{MigrationsTable: "schema_migrations"})
 	require.NoError(t, err)
-	sourceURL := fmt.Sprintf("file://%s", filepath.Join("..", "..", "..", "migrations"))
-	m, err := migrate.NewWithDatabaseInstance(sourceURL, "mysql", driver)
+	src, err := migrateiofs.New(assets.FS, assets.MigrationsDir)
+	require.NoError(t, err)
+	m, err := migrate.NewWithInstance("iofs", src, "mysql", driver)
 	require.NoError(t, err)
 	err = m.Up()
-	if err != nil && err != migrate.ErrNoChange {
+	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		require.NoError(t, err)
 	}
 }
