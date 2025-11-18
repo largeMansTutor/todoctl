@@ -6,6 +6,8 @@ import (
 
 	"github.com/spf13/viper"
 	"github.com/thetrollfarmercodes/todoctl/todo/pkg/httpadapter"
+
+	"github.com/thetrollfarmercodes/todoctl/todo/internal/platform/secrets"
 )
 
 // Config contains all configurable values for the application. It is loaded
@@ -28,6 +30,8 @@ type Config struct {
 	// format accepted by go-sql-driver/mysql. It can include
 	// connection parameters (e.g. charset, parseTime, loc).
 	DatabaseDSN string `mapstructure:"DB_DSN"`
+	// OpenAPIPath points to the OpenAPI spec file to serve.
+	OpenAPIPath string `mapstructure:"APP_OPENAPI_PATH"`
 
 	// APIKey, if set, enables API key authentication. Requests must
 	// include the X-API-Key header with this value to be accepted. If
@@ -35,6 +39,23 @@ type Config struct {
 	// allowed. Keeping the API key outside source code prevents
 	// accidental disclosure.
 	APIKey string `mapstructure:"APP_API_KEY"`
+	// AllowedAPIKeys optionally configures multiple API keys with labels in
+	// the form "key:label,key2:label2". If empty, falls back to APIKey. Labels
+	// are used only for logging/audit.
+	AllowedAPIKeys string `mapstructure:"APP_ALLOWED_API_KEYS"`
+	// AllowedAPIKeysHashed configures bcrypt-hashed API keys keyed by id in the
+	// form "id1:$2b$...[:label],id2:$2b$...". Caller must send X-API-Key-ID=id
+	// and X-API-Key with the cleartext secret. Labels are for logging/audit.
+	AllowedAPIKeysHashed string `mapstructure:"APP_ALLOWED_API_KEYS_HASHED"`
+
+	// SecretsProvider selects an external secrets manager ("vault" supported). If empty,
+	// values come from env directly.
+	SecretsProvider string `mapstructure:"APP_SECRETS_PROVIDER"`
+	// Vault settings (used when SecretsProvider=vault).
+	VaultAddr  string `mapstructure:"VAULT_ADDR"`
+	VaultToken string `mapstructure:"VAULT_TOKEN"`
+	VaultMount string `mapstructure:"VAULT_MOUNT"`
+	VaultPath  string `mapstructure:"VAULT_KV_PATH"`
 
 	// Rate limiting configuration (per-IP or per-API-key).
 	RateLimitPerSecond int `mapstructure:"APP_RATE_LIMIT_PER_SECOND"`
@@ -59,14 +80,54 @@ func New() (*Config, error) {
 
 	v.SetDefault("DB_DSN", "root:password@tcp(localhost:3306)/todos?parseTime=true&charset=utf8mb4&loc=UTC")
 	v.SetDefault("APP_API_KEY", "")
+	v.SetDefault("APP_ALLOWED_API_KEYS", "")
+	v.SetDefault("APP_ALLOWED_API_KEYS_HASHED", "")
+	v.SetDefault("APP_SECRETS_PROVIDER", "")
+	v.SetDefault("VAULT_ADDR", "")
+	v.SetDefault("VAULT_TOKEN", "")
+	v.SetDefault("VAULT_MOUNT", "secret")
+	v.SetDefault("VAULT_KV_PATH", "")
 	v.SetDefault("APP_RATE_LIMIT_PER_SECOND", 20)
 	v.SetDefault("APP_RATE_LIMIT_BURST", 40)
 	v.SetDefault("OTEL_EXPORTER_OTLP_ENDPOINT", "")
 	v.SetDefault("OTEL_SERVICE_NAME", "todo-api")
+	v.SetDefault("APP_OPENAPI_PATH", "openapi/openapi.yaml")
 
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("unable to load configuration: %w", err)
 	}
+	applySecrets(&cfg)
 	return &cfg, nil
+}
+
+// applySecrets optionally overrides config values from an external secrets backend.
+func applySecrets(cfg *Config) {
+	switch cfg.SecretsProvider {
+	case "vault":
+		if cfg.VaultAddr == "" || cfg.VaultToken == "" || cfg.VaultPath == "" {
+			return
+		}
+		client, err := secrets.NewVaultProvider(cfg.VaultAddr, cfg.VaultToken, cfg.VaultMount, cfg.VaultPath)
+		if err != nil {
+			return
+		}
+		secretMap, err := client.Fetch()
+		if err != nil {
+			return
+		}
+		override := func(key string, target *string) {
+			if target == nil {
+				return
+			}
+			if val, ok := secretMap[key]; ok && val != "" {
+				*target = val
+			}
+		}
+		override("DB_DSN", &cfg.DatabaseDSN)
+		override("APP_API_KEY", &cfg.APIKey)
+		override("APP_ALLOWED_API_KEYS", &cfg.AllowedAPIKeys)
+		override("APP_ALLOWED_API_KEYS_HASHED", &cfg.AllowedAPIKeysHashed)
+	default:
+	}
 }

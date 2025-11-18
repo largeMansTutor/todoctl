@@ -19,8 +19,10 @@ func HttpError(w http.ResponseWriter, status int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
-		"error": map[string]interface{}{
+		"error": ErrorResponse{
 			"message": msg,
 		},
 	})
 }
+
+type ErrorResponse = map[string]any

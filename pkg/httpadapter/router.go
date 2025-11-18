@@ -34,6 +34,7 @@ func NewRouter(cfg *HTTPConfig, logger *zap.Logger, metrics MetricsProvider, mou
 	}
 
 	r.Get("/healthz", Health)
+	attachDocs(r, cfg)
 
 	// Metrics endpoint
 	if metrics != nil {

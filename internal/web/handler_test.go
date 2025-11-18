@@ -14,6 +14,7 @@ import (
 
 	"github.com/thetrollfarmercodes/todoctl/todo/internal/core/idempotency"
 	tododomain "github.com/thetrollfarmercodes/todoctl/todo/internal/core/todo"
+	"github.com/thetrollfarmercodes/todoctl/todo/internal/platform/auth"
 	"github.com/thetrollfarmercodes/todoctl/todo/internal/platform/config"
 	todousecase "github.com/thetrollfarmercodes/todoctl/todo/internal/service/todo"
 	"github.com/thetrollfarmercodes/todoctl/todo/internal/service/todo/mocks"
@@ -70,7 +71,8 @@ func TestCreateTodosHandler(t *testing.T) {
 				tt.setupMocks(repo, store)
 			}
 			svc := todousecase.NewService(repo, store)
-			h := New(&config.Config{APIKey: tt.idKey}, svc, nil, nil, zap.NewNop())
+			authz := auth.New(map[string]string{tt.idKey: "test"})
+			h := New(&config.Config{APIKey: tt.idKey}, svc, authz, nil, nil, zap.NewNop())
 
 			req := httptest.NewRequest(http.MethodPost, "/todos", bytes.NewReader([]byte(tt.payload)))
 			if tt.idKey != "" {
@@ -149,7 +151,8 @@ func TestUpdateTodosHandler(t *testing.T) {
 				tt.setupMocks(repo, store)
 			}
 			svc := todousecase.NewService(repo, store)
-			h := New(&config.Config{APIKey: tt.idKey}, svc, nil, nil, zap.NewNop())
+			authz := auth.New(map[string]string{tt.idKey: "test"})
+			h := New(&config.Config{APIKey: tt.idKey}, svc, authz, nil, nil, zap.NewNop())
 
 			req := httptest.NewRequest(http.MethodPatch, "/todos", bytes.NewReader([]byte(tt.payload)))
 			if tt.idKey != "" {
@@ -216,7 +219,7 @@ func TestListTodosHandler(t *testing.T) {
 				tt.setupMocks(repo)
 			}
 			svc := todousecase.NewService(repo, nil)
-			h := New(&config.Config{}, svc, nil, nil, zap.NewNop())
+			h := New(&config.Config{}, svc, nil, nil, nil, zap.NewNop())
 
 			req := httptest.NewRequest(http.MethodGet, "/todos"+tt.query, nil)
 			rec := httptest.NewRecorder()
@@ -236,7 +239,7 @@ func TestGetTodoHandler(t *testing.T) {
 	repo := mocks.NewRepository(t)
 	repo.On("GetTodo", mock.Anything, uint64(1), "").Return(&tododomain.Todo{ID: 1, Title: "x"}, nil)
 	svc := todousecase.NewService(repo, nil)
-	h := New(&config.Config{}, svc, nil, nil, zap.NewNop())
+	h := New(&config.Config{}, svc, nil, nil, nil, zap.NewNop())
 
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("id", "1")

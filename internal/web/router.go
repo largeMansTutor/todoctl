@@ -6,7 +6,7 @@ import (
 
 func (h *App) Mount(router httpadapter.Router) {
 	router.Group(func(protected httpadapter.Router) {
-		protected.Use(httpadapter.APIKeyAuth(h.cfg.APIKey, h.logger))
+		protected.Use(httpadapter.APIKeyAuth(h.auth, h.logger))
 		if h.rateLimiter != nil {
 			protected.Use(h.rateLimiter.Middleware)
 		}
