@@ -61,7 +61,7 @@ func TestHTTPIntegration(t *testing.T) {
 	repo := mysqlstorage.NewTodoRepository(db)
 	idStore := mysqlstorage.NewIdempotencyStore(db)
 	svc := todousecase.NewService(repo, idStore)
-	app := New(cfg, svc, httpadapter.NewRateLimiter(100, 100, nil), nil, zap.NewNop())
+	app := New(cfg, svc, nil, httpadapter.NewRateLimiter(100, 100, nil), nil, zap.NewNop())
 
 	router, err := httpadapter.NewRouter(&cfg.HTTPConfig, zap.NewNop(), nil, app)
 	require.NoError(t, err)
