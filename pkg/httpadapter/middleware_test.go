@@ -24,7 +24,8 @@ func TestMaxBytes(t *testing.T) {
 }
 
 func TestAPIKeyAuth(t *testing.T) {
-	mw := APIKeyAuth("secret", zap.NewNop())
+	authz := &stubAuth{allowed: map[string]bool{"secret": true}}
+	mw := APIKeyAuth(authz, zap.NewNop())
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -39,4 +40,12 @@ func TestAPIKeyAuth(t *testing.T) {
 	rec2 := httptest.NewRecorder()
 	handler.ServeHTTP(rec2, req2)
 	require.Equal(t, http.StatusOK, rec2.Code)
+}
+
+type stubAuth struct {
+	allowed map[string]bool
+}
+
+func (s *stubAuth) Authorize(key string, _ ...string) (string, bool) {
+	return "", s.allowed[key]
 }

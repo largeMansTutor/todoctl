@@ -35,9 +35,9 @@ func (d *DedupByKey[T, K]) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("DedupTodosUpdate: expected JSON array")
 	}
 	var decodeErr error
-		dedupSeq := UniqueBy(decoderSeq[T](dec, &decodeErr), func(v T) K {
-			return v.Key()
-		})
+	dedupSeq := UniqueBy(decoderSeq[T](dec, &decodeErr), func(v T) K {
+		return v.Key()
+	})
 	out := slices.Collect(dedupSeq)
 
 	if decodeErr != nil {

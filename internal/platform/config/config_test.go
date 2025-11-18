@@ -17,4 +17,7 @@ func TestNewDefaults(t *testing.T) {
 	require.Equal(t, 10*time.Second, cfg.ReadTimeout)
 	require.Equal(t, "todo-api", cfg.OTELServiceName)
 	require.Equal(t, "root:password@tcp(localhost:3306)/todos?parseTime=true&charset=utf8mb4&loc=UTC", cfg.DatabaseDSN)
+	require.Equal(t, "openapi/openapi.yaml", cfg.OpenAPIPath)
+	require.Equal(t, "", cfg.AllowedAPIKeys)
+	require.Equal(t, "", cfg.AllowedAPIKeysHashed)
 }

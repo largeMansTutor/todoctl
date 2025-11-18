@@ -7,12 +7,16 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/golang-migrate/migrate/v4"
 	mysqlmigrate "github.com/golang-migrate/migrate/v4/database/mysql"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	migrateiofs "github.com/golang-migrate/migrate/v4/source/iofs"
+	assets "github.com/thetrollfarmercodes/todoctl/todo"
+	"github.com/thetrollfarmercodes/todoctl/todo/internal/cli/commands"
 	"github.com/thetrollfarmercodes/todoctl/todo/internal/core/idempotency"
 	tododomain "github.com/thetrollfarmercodes/todoctl/todo/internal/core/todo"
 	"github.com/thetrollfarmercodes/todoctl/todo/internal/platform/config"
@@ -37,6 +41,7 @@ var (
 )
 
 func main() {
+	migrationPath = assets.MigrationsDir
 	root := &cobra.Command{
 		Use:   "todoctl",
 		Short: "Todo service CLI",
@@ -52,6 +57,7 @@ func main() {
 					func(cfg *config.Config) *httpadapter.HTTPConfig {
 						return &cfg.HTTPConfig
 					},
+					authFromConfig,
 					loggerfx.New,
 					metrics.New,
 					telemetry.ConfigureTracerProvider,
@@ -112,10 +118,22 @@ func main() {
 			if err != nil {
 				return err
 			}
-			sourceURL := fmt.Sprintf("file://%s", migrationPath)
-			m, err := migrate.NewWithDatabaseInstance(sourceURL, "mysql", driver)
-			if err != nil {
-				return err
+			var m *migrate.Migrate
+			if migrationPath == assets.MigrationsDir || strings.TrimSpace(migrationPath) == "" {
+				src, err := migrateiofs.New(assets.FS, assets.MigrationsDir)
+				if err != nil {
+					return err
+				}
+				m, err = migrate.NewWithInstance("iofs", src, "mysql", driver)
+				if err != nil {
+					return err
+				}
+			} else {
+				sourceURL := fmt.Sprintf("file://%s", migrationPath)
+				m, err = migrate.NewWithDatabaseInstance(sourceURL, "mysql", driver)
+				if err != nil {
+					return err
+				}
 			}
 			switch migrateDirection {
 			case "up":
@@ -147,6 +165,7 @@ func main() {
 
 	root.AddCommand(apiCmd)
 	root.AddCommand(migrateCmd)
+	commands.AttachClientCommands(root)
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

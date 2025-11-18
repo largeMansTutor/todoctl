@@ -12,6 +12,7 @@ type HTTPConfig struct {
 	MaxBodyBytes int64         `mapstructure:"APP_MAX_BODY_BYTES"`
 	TLSCertFile  string        `mapstructure:"APP_TLS_CERT_FILE"`
 	TLSKeyFile   string        `mapstructure:"APP_TLS_KEY_FILE"`
+	OpenAPIPath  string        `mapstructure:"APP_OPENAPI_PATH"`
 }
 
 type OTELConfig struct {

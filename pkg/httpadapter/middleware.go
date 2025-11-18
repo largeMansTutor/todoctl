@@ -78,26 +78,29 @@ func MaxBytes(n int64) func(http.Handler) http.Handler {
 	}
 }
 
-// APIKeyAuth returns middleware that enforces a static API key check. If
-// the provided key is empty, the middleware is a no-op. Otherwise
-// requests must include the header X-API-Key equal to the provided
-// value. If the header is missing or incorrect, a 401 Unauthorized
-// response is returned.
-func APIKeyAuth(key string, logger *zap.Logger) func(http.Handler) http.Handler {
-	if key == "" {
-		return func(next http.Handler) http.Handler { return next }
-	}
+// APIKeyAuth enforces API key checks using an auth service. If the service is nil,
+// it acts as a no-op (for explicit opt-out in dev). Otherwise, requests must
+// include X-API-Key (and optionally X-API-Key-ID when hashed keys are used). It
+// logs the key label (if provided by the service) for audit.
+func APIKeyAuth(authz interface {
+	Authorize(key string, keyID ...string) (label string, ok bool)
+}, logger *zap.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Compare constant time to avoid timing attack; but here string comparison is fine
-			apiKey := r.Header.Get("X-API-Key")
-			if apiKey != key {
-				w.Header().Set("WWW-Authenticate", "API key required")
-				w.WriteHeader(http.StatusUnauthorized)
-				_, _ = w.Write([]byte(`{"error": {"message": "unauthorized"}}`))
-				// Log unauthorized attempts for audit
-				logger.Warn("unauthorized request", zap.String("remote", r.RemoteAddr))
-				return
+			if authz != nil {
+				apiKey := r.Header.Get("X-API-Key")
+				apiKeyID := r.Header.Get("X-API-Key-ID")
+				if label, ok := authz.Authorize(apiKey, apiKeyID); !ok {
+					w.Header().Set("WWW-Authenticate", "API key required")
+					w.WriteHeader(http.StatusUnauthorized)
+					_, _ = w.Write([]byte(`{"error": {"message": "unauthorized"}}`))
+					if logger != nil {
+						logger.Warn("unauthorized request", zap.String("remote", r.RemoteAddr), zap.String("api_key_id", apiKeyID))
+					}
+					return
+				} else if logger != nil && label != "" {
+					logger = logger.With(zap.String("api_key_label", label))
+				}
 			}
 			next.ServeHTTP(w, r)
 		})

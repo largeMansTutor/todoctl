@@ -18,6 +18,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 FROM gcr.io/distroless/static-debian11
 WORKDIR /app
 COPY --from=builder /app/todo /usr/local/bin/todo
+COPY --from=builder /app/openapi /app/openapi
 COPY --from=builder /app/migrations /app/migrations
 ENV APP_PORT=8080
 EXPOSE 8080
