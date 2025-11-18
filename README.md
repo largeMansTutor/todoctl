@@ -1,6 +1,6 @@
 # Todo Service
 
-This repository contains a production‑grade Todo API implemented in Go. It exposes endpoints to create, update and list todo items in bulk. The service is instrumented with structured logging, idempotency for safe retries, optional API key authentication and sensible defaults for security and performance.
+This repository contains Todo API implemented in Go. It exposes endpoints to create, update and list todo items in bulk. The service is instrumented with structured logging, idempotency for safe retries, optional API key authentication and sensible defaults for security and performance.
 
 ## Features
 
@@ -20,7 +20,7 @@ This repository contains a production‑grade Todo API implemented in Go. It exp
 
 ### Prerequisites
 
-- Go 1.22+
+- Go 1.25+
 - MySQL 8.x (or Docker)
 
 ### Running with Docker Compose

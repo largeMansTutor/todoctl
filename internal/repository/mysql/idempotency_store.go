@@ -17,7 +17,7 @@ type idempotencyStore struct {
 const storeMethod = "USECASE"
 
 // NewIdempotencyStore returns a Store backed by MySQL. The key is hashed using
-// xxhash to avoid storing potentially sensitive raw idempotency keys.
+// xxhash which is fast and collision-free.
 func NewIdempotencyStore(db *sql.DB) idempotency.Store {
 	return &idempotencyStore{db: db}
 }

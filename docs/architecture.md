@@ -53,7 +53,7 @@ flowchart LR
 
 - **Cobra CLI**: Parses command‑line arguments and flags. `todoctl api` creates the Fx application and blocks until shut down. `todoctl migrate` reads SQL files from the `migrations/` directory and executes them against the database.
 
-- **Fx Application**: Manages the lifecycle of all components. It provides the configuration, logger, database connection, repository, idempotency store, service, HTTP router, and starts the HTTP server. Fx ensures graceful startup and teardown.
+- **Fx Application**: Manages the lifecycle of all components. It provides the configuration, logger, database connection, repository, idempotency store, service, HTTP router, and starts the HTTP server. 
 
 - **Configuration**: Loaded via Viper from environment variables. Defines HTTP server settings (port, timeouts, body size), database DSN, and the optional API key.
 
